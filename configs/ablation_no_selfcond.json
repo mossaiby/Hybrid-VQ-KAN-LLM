@@ -1,0 +1,6 @@
+{
+  "_comment": "Ablation A3: teacher-forced latent training only (paper Table 3 'HybridLink Activation' analogue).",
+  "inherit": "../config.json",
+  "run": {"name": "abl_no_selfcond"},
+  "hybrid": {"self_cond": {"end": 0.0}}
+}

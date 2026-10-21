@@ -1,0 +1,6 @@
+{
+  "_comment": "Ablation A1: no learned link, h_t fed back directly (Coconut-style; paper Table 6 'Identity').",
+  "inherit": "../config.json",
+  "run": {"name": "abl_identity_link"},
+  "model": {"link_type": "identity"}
+}

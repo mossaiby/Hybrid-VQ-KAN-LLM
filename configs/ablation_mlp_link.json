@@ -1,0 +1,6 @@
+{
+  "_comment": "Ablation A2: KAN-VQ backbone with the paper's MLP HybridLink instead of the KAN link.",
+  "inherit": "../config.json",
+  "run": {"name": "abl_mlp_link"},
+  "model": {"link_type": "mlp"}
+}

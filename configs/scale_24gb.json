@@ -1,0 +1,18 @@
+{
+  "_comment": "Partial override for a 24 GB consumer GPU (RTX 3090/4090). Not usable alone: combine with a variant via configs/24gb/*.json. ~186M params -> ~3.7B tokens at 20 tok/param.",
+  "data": {
+    "dir": "data/24gb",
+    "tokenizer": {"vocab_size": 32768, "train_docs": 300000},
+    "general":  {"train_tokens": 1800000000, "val_tokens": 5000000},
+    "openmath": {"split": "train", "sources": null, "max_train_samples": 7000000, "val_samples": 3000,
+                 "max_tokens_per_sample": 1000},
+    "synth":    {"train_samples": 2000000, "train_depth": [2, 10], "eval_depth": [2, 16]},
+    "mix": {"general": 0.45, "openmath": 0.45, "synth": 0.1}
+  },
+  "model": {"d_model": 768, "n_layers": 12, "n_heads": 12, "max_seq_len": 1024,
+            "d_ff": 1024, "link_hidden": 768, "grad_checkpoint": false},
+  "training": {"micro_batch": 8, "grad_accum": 16, "max_lr": 6e-4, "compile": true,
+               "eval_interval": 2000, "save_interval": 2000, "eval_batches": 20,
+               "quick_eval": {"samples": 200, "max_new_steps": 384}},
+  "inference": {"max_new_steps": 768, "max_latent_steps": 256}
+}

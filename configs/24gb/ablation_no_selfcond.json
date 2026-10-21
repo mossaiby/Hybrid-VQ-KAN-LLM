@@ -1,0 +1,1 @@
+{"inherit": ["../ablation_no_selfcond.json", "../scale_24gb.json"], "run": {"name": "24gb_abl_no_selfcond"}}

@@ -1,0 +1,6 @@
+{
+  "_comment": "Ablation A4 (extension beyond the paper): each latent step stands for up to 4 tokens, so latent spans are 4x shorter.",
+  "inherit": "../config.json",
+  "run": {"name": "abl_compress4"},
+  "hybrid": {"compression": 4}
+}

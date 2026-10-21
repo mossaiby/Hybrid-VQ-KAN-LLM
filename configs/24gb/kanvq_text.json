@@ -1,0 +1,1 @@
+{"inherit": ["../kanvq_text.json", "../scale_24gb.json"], "run": {"name": "24gb_kanvq_text"}}

@@ -1,0 +1,6 @@
+{
+  "_comment": "Baseline B1: identical KAN-VQ backbone and data, trained on pure text chain-of-thought (isolates the hybrid method).",
+  "inherit": "../config.json",
+  "run": {"name": "kanvq_text"},
+  "hybrid": {"enabled": false}
+}

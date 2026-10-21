@@ -1,0 +1,10 @@
+# Install PyTorch with CUDA first, matching your driver (see https://pytorch.org/get-started/locally/), e.g.
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+torch>=2.4
+numpy>=1.26
+tokenizers>=0.19
+datasets>=2.20
+huggingface_hub>=0.23
+tqdm>=4.66
+matplotlib>=3.8
+# optional: Triton for training.compile=true (Linux: bundled with torch; Windows: pip install triton-windows)
