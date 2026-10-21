@@ -50,6 +50,16 @@ python train.py --config configs/sep_kan_plainhead_text.json    # KAN FFN + plai
 python train.py --config configs/sep_swiglu_sphere_text.json    # SwiGLU FFN + sphere head
 ```
 
+## RTX 2080 Ti (11 GB) profile
+
+`configs/2080ti/*.json` combine each arm with `configs/hw_2080ti.json`. The profile uses micro-batch 16 × 2 accumulation steps (the same 16,384 tokens per step) and fp16 with loss scaling, since Turing has no fast bf16. All other settings, including the token budget and the validation set, match the laptop runs.
+
+```
+python train.py --config configs/2080ti/kanvq_hybrid.json
+```
+
+`training.amp` (`auto` | `bf16` | `fp16` | `fp32`) overrides the precision. `auto` picks bf16 on Ampere or newer GPUs and fp16 otherwise.
+
 ## 24 GB card (Chinchilla-scale study)
 
 ```bash

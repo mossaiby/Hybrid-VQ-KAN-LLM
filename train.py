@@ -93,7 +93,7 @@ def main():
     seed = run.get("seed", 1337)
     random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
     DEVICE = pick_device(args.device)
-    amp_dtype = pick_amp_dtype(DEVICE)
+    amp_dtype = pick_amp_dtype(DEVICE, t.get("amp", "auto"))
     # Autocast's weight-cast cache stays on; compute_losses clears it after the self-conditioning
     # no-grad pass (see the comment there).
     amp_ctx = ((lambda: torch.autocast(DEVICE.type, dtype=amp_dtype)) if amp_dtype

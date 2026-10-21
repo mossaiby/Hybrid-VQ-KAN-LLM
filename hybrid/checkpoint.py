@@ -12,10 +12,18 @@ def pick_device(pref="auto"):
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def pick_amp_dtype(device):
-    if device.type != "cuda":
+def pick_amp_dtype(device, pref="auto"):
+    """Mixed-precision dtype. "auto": bf16 on Ampere or newer (compute capability >= 8), fp16 on older
+    GPUs such as Turing (RTX 20xx). Recent PyTorch reports bf16 as "supported" on Turing via slow
+    emulation, so the capability check matters. pref may also be "bf16", "fp16" or "fp32"."""
+    if device.type != "cuda" or pref == "fp32":
         return None
-    return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+    if pref == "bf16":
+        return torch.bfloat16
+    if pref == "fp16":
+        return torch.float16
+    major, _ = torch.cuda.get_device_capability(device)
+    return torch.bfloat16 if major >= 8 else torch.float16
 
 
 def resolve_ckpt(path):

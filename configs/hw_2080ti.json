@@ -1,0 +1,4 @@
+{
+  "_comment": "Hardware overlay for an RTX 2080 Ti (11 GB, Turing). Partial file: combine with an arm via configs/2080ti/*.json. Same optimisation as the laptop runs (16384 tokens/step, same LR schedule and token budget); only the split into micro-batches and the precision differ. Turing has no fast bf16, so fp16 with loss scaling is used. eval_batches x micro_batch = 80 rows, the same validation size as the laptop runs.",
+  "training": {"micro_batch": 16, "grad_accum": 2, "eval_batches": 5, "amp": "fp16"}
+}
