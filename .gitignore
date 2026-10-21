@@ -1,6 +1,6 @@
 .venv/
 data/
-runs/
 __pycache__/
+# checkpoints are large; logs, configs and eval results under runs/ are tracked
 *.pt
-*.png
+runs/**/tokenizer.json
