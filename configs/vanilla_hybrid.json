@@ -1,6 +1,6 @@
 {
   "_comment": "Baseline B3: the paper's HybridAgent recipe (MLP HybridLink, Eq. 4) on a vanilla backbone, pretrained from scratch. Completes the 2x2 design {KAN-VQ, vanilla} x {text, hybrid}.",
   "inherit": "../config.json",
-  "run": {"name": "vanilla_hybrid"},
+  "run": {"name": "vanilla_hybrid_v2"},
   "model": {"mlp_type": "swiglu", "swiglu_d_ff": "auto", "sphere": false, "link_type": "mlp"}
 }

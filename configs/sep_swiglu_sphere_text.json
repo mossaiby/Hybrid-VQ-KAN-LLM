@@ -1,0 +1,7 @@
+{
+  "_comment": "Separation S2 (v2): SwiGLU FFN (param-matched) with the sphere/cosine head incl. logit bias, text CoT only. Completes the 2x2 {KAN, SwiGLU} x {sphere head, plain head} for text-only models.",
+  "inherit": "../config.json",
+  "run": {"name": "sep_swiglu_sphere_text"},
+  "model": {"mlp_type": "swiglu", "swiglu_d_ff": "auto", "sphere": true},
+  "hybrid": {"enabled": false}
+}

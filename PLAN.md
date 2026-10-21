@@ -176,6 +176,34 @@ Total 24 GB budget: 4 main arms + 3–4 ablations ≈ 8–12 GPU-days. Prioritis
 - **KAN cost.** The (G+1)× feature map costs memory and bandwidth; gradient checkpointing is on for the laptop config. Report tokens/s for every arm so that efficiency claims are honest.
 - **Hybrid arms see fewer "text tokens" of reasoning** under the same position budget. Report both budgets, and note that latent positions also carry supervision.
 
+## 10b. Design iteration v2 (after the first laptop pilot)
+
+The first four laptop runs (v1) showed:
+
+- **Backbone gap.** The KAN-VQ backbone trails the vanilla one by 0.58 nats on general text and 0.33 on OpenMath at matched parameters and tokens.
+- **Hybrid cost.** Hybrid training is nearly free for KAN-VQ (≤ 0.02 nats) but costly for vanilla (0.13–0.20 nats).
+- **Accuracy.** Hybrid mode trails text mode by 2–3 points in both backbones (quick eval, not yet significance-tested).
+
+Two causes are attributable to the implementation rather than to the ideas being tested, so v2 fixes them.
+
+1. **Cosine head (KAN-VQ arms).** The learned logit scale saturated at its hard cap of 100 at about 70 % of training. A cosine head also cannot encode token frequency.
+   - *Fix:* a per-token logit bias (`model.logit_bias`) and a configurable cap (`model.logit_scale_max = 1000`).
+   - The latent readout and the exit rule stay pure cosine (paper Eq. 5).
+2. **Link loss scale (vanilla hybrid).** The relative-error term divides by ‖Emb(y)‖², which is tiny in a non-sphere model. When latent training began, link loss reached ~61 and the gradient norm 161. The median gradient norm then stayed at 2–10 against a clip of 1.0, effectively cutting the learning rate 3–10×.
+   - *Fix:* a link warm-up (`hybrid.link_detach_until = 0.3`). Until 30 % of training, the link loss trains only HybridLink, not the backbone. This is the pretraining analogue of the paper's frozen-backbone link activation, and it is applied to both hybrid arms.
+
+The token budget is unchanged (20 × the parameters of the v1 reference arm), so `vanilla_text` (unaffected by either fix) is reused.
+
+**v2 runs:**
+- `kanvq_hybrid_v2`
+- `kanvq_text_v2`
+- `vanilla_hybrid_v2`
+- two separation runs with text-only models, completing {KAN, SwiGLU} × {sphere head, plain head}:
+  - `sep_kan_plainhead_text`
+  - `sep_swiglu_sphere_text`
+
+**Reporting.** The paper reports v1 → v2 honestly as a design iteration. The 24 GB study uses the frozen v2 design.
+
 ## 11. Target venues (no article-processing charge)
 
 Verify current policies on each site before submitting.

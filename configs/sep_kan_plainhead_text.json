@@ -1,0 +1,7 @@
+{
+  "_comment": "Separation S1 (v2): KAN FFN with an ordinary tied dot-product head (no sphere), text CoT only. Compare with kanvq_text_v2 (KAN + sphere) and vanilla_text (SwiGLU + plain head) to attribute the CE gap to the FFN or to the head.",
+  "inherit": "../config.json",
+  "run": {"name": "sep_kan_plainhead_text"},
+  "model": {"sphere": false},
+  "hybrid": {"enabled": false}
+}

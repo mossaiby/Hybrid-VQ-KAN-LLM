@@ -157,6 +157,11 @@ class HybridLM(nn.Module):
             # unit-sphere codebook; input embeddings are rescaled so the residual stream starts at O(1)/dim
             self.emb_log_scale = nn.Parameter(torch.tensor(math.log(math.sqrt(d))))
             self.logit_log_scale = nn.Parameter(torch.tensor(math.log(m.get("logit_scale_init", 16.0))))
+            # v2: per-token logit bias (lets the cosine head encode token frequency, which a plain cosine
+            # head cannot) and a configurable cap on the scale (v1 hard-coded 100 and saturated).
+            # Defaults reproduce v1 so old checkpoints load unchanged.
+            self.logit_scale_max = float(m.get("logit_scale_max", 100.0))
+            self.logit_bias = nn.Parameter(torch.zeros(vocab_size)) if m.get("logit_bias", False) else None
         self.blocks = nn.ModuleList([Block(m, m["n_layers"]) for _ in range(m["n_layers"])])
         self.norm_f = RMSNorm(d)
         self.link_mod = HybridLink(m)
@@ -205,11 +210,12 @@ class HybridLM(nn.Module):
         return self.norm_f(x)
 
     def logit_scale(self):
-        return self.logit_log_scale.exp().clamp(max=100.0)
+        return self.logit_log_scale.exp().clamp(max=self.logit_scale_max)
 
     def logits(self, h):
         if self.sphere:  # cosine-similarity head against the VQ codebook
-            return self.logit_scale() * (F.normalize(h, dim=-1) @ self.codebook().t().to(h.dtype))
+            out = self.logit_scale() * (F.normalize(h, dim=-1) @ self.codebook().t().to(h.dtype))
+            return out if self.logit_bias is None else out + self.logit_bias.to(out.dtype)
         return h @ self.embed.weight.t().to(h.dtype)
 
     def link(self, h):
@@ -255,12 +261,17 @@ def build_inputs(model, ids_in, grp_in):
     return x
 
 
-def compute_losses(model, ids, grp, hcfg, self_cond_iters=0, with_metrics=True):
+def compute_losses(model, ids, grp, hcfg, self_cond_iters=0, with_metrics=True, detach_link_input=False):
     """ids: (B, S+1) item ids (slots = sp.slot), grp: (B, S+1, k) slot token groups (-1 padded).
 
     Returns (total_loss, metrics). With self_cond_iters > 0 the latent inputs are replaced by the
     model's own one-step-ahead HybridLink predictions before the graded pass (paper Sec. 4.1, Fig. 4);
-    each extra iteration re-runs the no-grad pass on the updated inputs (closer to free running)."""
+    each extra iteration re-runs the no-grad pass on the updated inputs (closer to free running).
+
+    detach_link_input=True stops the link loss from reaching the backbone (only HybridLink learns from
+    it). This is the pretraining analogue of the paper's link activation with a frozen backbone and is
+    used early in training (hybrid.link_detach_until) so the first, large link gradients cannot
+    disrupt the backbone."""
     sp = model.sp
     ids_in, ids_next = ids[:, :-1], ids[:, 1:]
     grp_next = grp[:, 1:]
@@ -297,7 +308,8 @@ def compute_losses(model, ids, grp, hcfg, self_cond_iters=0, with_metrics=True):
     lsrc = src & (next_slot | next_close)
     metrics = {}
     if lsrc.any():
-        z = model.link(h[lsrc]).float()
+        h_src = h[lsrc].detach() if detach_link_input else h[lsrc]
+        z = model.link(h_src).float()
         tgt = model.target_vecs(grp_next[lsrc]).float()
         close_vec = model.codebook()[sp.lat_close].float()
         is_exit = next_close[lsrc]

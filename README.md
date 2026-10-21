@@ -2,7 +2,7 @@
 
 This project pretrains small language models from scratch that reason partly in **latent space** and partly in **text**, using the HybridAgent mechanism (HybridLink, `<latent>`/`</latent>` anchors, self-conditioning, KV working memory). The backbone is a **bounded ReLU-KAN** FFN with a **VQ unit-sphere codebook**. There is no post-training: the hybrid behaviour is learned during pretraining through a curriculum. See `PLAN.md` for the research plan.
 
-> Status: scaffold. The code is complete but has **not been run yet**; it was written without GPU access. Do the smoke test below first.
+> Status: v1 laptop pilot completed (4 arms); v2 design changes in PLAN.md §10b.
 
 ## Setup
 
@@ -37,6 +37,18 @@ python plot_runs.py runs/kanvq_hybrid runs/kanvq_text runs/vanilla_text runs/van
 ```
 
 For a quick data-prep test, shrink the budgets, e.g. `--set data.general.train_tokens=5000000 --set data.openmath.max_train_samples=20000 --set data.synth.train_samples=20000 --set data.dir=data/tiny`. Pass the same `data.dir` to `train.py`.
+
+## v2 laptop runs (current design)
+
+The v2 design adds a per-token logit bias and a higher scale cap for the cosine head, plus a link warm-up; see PLAN.md §10b. `vanilla_text` from v1 is reused.
+
+```
+python train.py --config config.json                            # kanvq_hybrid_v2
+python train.py --config configs/kanvq_text.json                # kanvq_text_v2
+python train.py --config configs/vanilla_hybrid.json            # vanilla_hybrid_v2
+python train.py --config configs/sep_kan_plainhead_text.json    # KAN FFN + plain head
+python train.py --config configs/sep_swiglu_sphere_text.json    # SwiGLU FFN + sphere head
+```
 
 ## 24 GB card (Chinchilla-scale study)
 

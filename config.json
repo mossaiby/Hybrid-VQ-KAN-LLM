@@ -1,6 +1,6 @@
 {
   "_comment": "Main run: bounded ReLU-KAN + VQ sphere codebook + hybrid latent pretraining. Sized for an RTX 3050 Ti Laptop (4 GB). Every other config inherits from this file.",
-  "run": {"name": "kanvq_hybrid", "out_root": "runs", "seed": 1337},
+  "run": {"name": "kanvq_hybrid_v2", "out_root": "runs", "seed": 1337},
 
   "data": {
     "dir": "data/laptop",
@@ -20,7 +20,7 @@
     "d_model": 256, "n_layers": 8, "n_heads": 4, "max_seq_len": 512,
     "mlp_type": "kan", "d_ff": 384, "kan_grid": 6, "kan_overlap": 1.5,
     "swiglu_d_ff": "auto",
-    "sphere": true, "logit_scale_init": 16.0, "qk_norm": true,
+    "sphere": true, "logit_scale_init": 16.0, "logit_scale_max": 1000.0, "logit_bias": true, "qk_norm": true,
     "link_type": "kan", "link_hidden": 256,
     "dropout": 0.0, "grad_checkpoint": false
   },
@@ -34,6 +34,7 @@
     "min_span_tokens": 8,
     "keep_first_step_text": true,
     "keep_last_step_text": true,
+    "link_detach_until": 0.3,
     "lambda_link": 1.0, "lambda_cos": 1.0, "lambda_mse": 0.2, "exit_weight": 2.0
   },
 

@@ -113,7 +113,9 @@ def main():
     if t["total_tokens"] == "chinchilla":
         # Same token budget for every arm: 20 x params of the *reference* arm (the full KAN-VQ hybrid
         # model at this scale), counted on the meta device so nothing is allocated.
-        ref_m = dict(m, **t.get("budget_reference", {"mlp_type": "kan", "sphere": True, "link_type": "kan"}))
+        # logit_bias excluded so the budget is identical to the v1 runs (keeps vanilla_text comparable)
+        ref_m = dict(m, **t.get("budget_reference", {"mlp_type": "kan", "sphere": True, "link_type": "kan",
+                                                      "logit_bias": False}))
         with torch.device("meta"):
             ref_params = HybridLM(ref_m, vocab, sp).num_params()
         total_tokens = int(t.get("chinchilla_mult", 20) * ref_params)
@@ -191,7 +193,8 @@ def main():
             sc_iters = h["self_cond"].get("iters", 1) if random.random() < sc_p else 0
             with amp_ctx():
                 loss, mets = compute_losses(model, ids, grp, h, sc_iters,
-                                            with_metrics=(step % t["log_interval"] == 0))
+                                            with_metrics=(step % t["log_interval"] == 0),
+                                            detach_link_input=prog < h.get("link_detach_until", 0.0))
             scaler.scale(loss / t["grad_accum"]).backward()
             for k, v in mets.items():
                 agg.setdefault(k, []).append(v)
