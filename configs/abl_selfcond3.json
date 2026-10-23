@@ -1,0 +1,13 @@
+{
+  "_comment": "Stronger self-conditioning: 3 no-grad passes, up to 70% of batches (targets latent drift on long spans).",
+  "inherit": "../config.json",
+  "run": {
+    "name": "abl_selfcond3"
+  },
+  "hybrid": {
+    "self_cond": {
+      "end": 0.7,
+      "iters": 3
+    }
+  }
+}

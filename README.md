@@ -1,8 +1,8 @@
-# hybrid-kanvq
+# Hybrid latent/text reasoning learned in pretraining
 
-This project pretrains small language models from scratch that reason partly in **latent space** and partly in **text**, using the HybridAgent mechanism (HybridLink, `<latent>`/`</latent>` anchors, self-conditioning, KV working memory). The backbone is a **bounded ReLU-KAN** FFN with a **VQ unit-sphere codebook**. There is no post-training: the hybrid behaviour is learned during pretraining through a curriculum. See `PLAN.md` for the research plan.
+This project pretrains small language models from scratch that reason partly in **latent space** and partly in **text**, using the HybridAgent mechanism (HybridLink, `<latent>`/`</latent>` anchors, self-conditioning, KV working memory) without any post-training. The current main model (v3) is a standard pre-norm Transformer (SwiGLU FFN) with a **sphere head**: unit-sphere tied embeddings, cosine logits with a per-token bias, and the same sphere used for latent targets and for the nearest-token latent readout.
 
-> Status: v1 laptop pilot completed (4 arms); v2 design changes in PLAN.md §10b.
+> Status: the v1/v2 study of a bounded ReLU-KAN FFN found it worse than SwiGLU on every measure. Its configs are archived in `configs/archive_kan/`, and the findings are in PLAN.md §10b–10c. v3 runs (main model, seeds, ablations) are listed below.
 
 ## Setup
 
@@ -13,62 +13,47 @@ pip install -r requirements.txt
 huggingface-cli login     # optional; avoids rate limits when streaming datasets
 ```
 
+`torch.compile` is on by default. On Windows it needs Triton matching your PyTorch (for PyTorch 2.6: `pip install "triton-windows<3.3"`). Otherwise add `--set training.compile=false`.
+
 ## Quick start (laptop, RTX 3050 Ti 4 GB)
 
 ```bash
 # 1. data: tokenizer + FineWeb-Edu + OpenMathInstruct-2 (GSM8K-derived) + synthetic chains + GSM8K test
 python prepare_data.py --config config.json
 
-# 2. smoke test (~5M tokens, a few minutes)
-python train.py --config config.json --set run.name=smoke --set training.total_tokens=5000000 \
-                --set training.eval_interval=50 --set training.log_interval=10
+# 2. smoke test (a few minutes)
+python train.py --config config.json --set run.name=smoke --set training.total_tokens=3000000
 
-# 3. full Chinchilla run (20 tokens/param) of the main model and the baselines
-python train.py --config config.json                    # KAN-VQ hybrid (ours)
-python train.py --config configs/kanvq_text.json        # B1: same backbone, text CoT only
-python train.py --config configs/vanilla_text.json      # B2: vanilla Transformer, text CoT
-python train.py --config configs/vanilla_hybrid.json    # B3: paper recipe on vanilla backbone
+# 3. main model and comparison arms (364.7M tokens each, ~4-4.5 h on the laptop)
+python train.py --config config.json                        # sphere_hybrid (main)
+python train.py --config configs/sphere_text.json           # same backbone, text CoT only
+python train.py --config configs/vanilla_hybrid.json        # standard head + hybrid
+python train.py --config configs/seeds/sphere_hybrid_s2.json   # seed replicates: configs/seeds/
 
 # 4. evaluate, generate, compare
-python eval.py --run runs/kanvq_hybrid --sets synth openmath gsm8k --limit 500 --interventions all
-python eval.py --run runs/kanvq_hybrid --sets synth --limit 200 --batch_size 1   # latency (ms/sample) numbers
-python generate.py --run runs/kanvq_hybrid --question "Let a = 4. Let b = a * 3. Let c = b + a. What is c?"
-python plot_runs.py runs/kanvq_hybrid runs/kanvq_text runs/vanilla_text runs/vanilla_hybrid
+python eval.py --run runs/sphere_hybrid --sets synth gsm8k --limit 0 --interventions all
+python eval.py --run runs/sphere_hybrid --sets synth --limit 200 --batch_size 1   # latency numbers
+python generate.py --run runs/sphere_hybrid --question "Let a = 4. Let b = a * 3. Let c = b + a. What is c?"
+python compare_runs.py --runs sphere_hybrid sphere_text vanilla_text --sets synth gsm8k --ref vanilla_text:text
+python plot_runs.py runs/sphere_hybrid runs/sphere_text runs/vanilla_text
 ```
+
+`train.py` refuses to start in a run folder that already holds a checkpoint, unless you pass `--resume`. This prevents appending to a finished run's logs.
 
 For a quick data-prep test, shrink the budgets, e.g. `--set data.general.train_tokens=5000000 --set data.openmath.max_train_samples=20000 --set data.synth.train_samples=20000 --set data.dir=data/tiny`. Pass the same `data.dir` to `train.py`.
 
-## v2 laptop runs (current design)
+## Other hardware
 
-The v2 design adds a per-token logit bias and a higher scale cap for the cosine head, plus a link warm-up; see PLAN.md §10b. `vanilla_text` from v1 is reused.
+**RTX 2080 Ti (11 GB).** `configs/2080ti/*.json` combine an arm with `configs/hw_2080ti.json`: micro-batch 16 × 2 accumulation steps (the same 16,384 tokens per step) and fp16 with loss scaling, since Turing has no fast bf16. `training.amp` (`auto` | `bf16` | `fp16` | `fp32`) overrides the precision. `auto` picks bf16 on Ampere or newer GPUs and fp16 otherwise.
 
-```
-python train.py --config config.json                            # kanvq_hybrid_v2
-python train.py --config configs/kanvq_text.json                # kanvq_text_v2
-python train.py --config configs/vanilla_hybrid.json            # vanilla_hybrid_v2
-python train.py --config configs/sep_kan_plainhead_text.json    # KAN FFN + plain head
-python train.py --config configs/sep_swiglu_sphere_text.json    # SwiGLU FFN + sphere head
-```
-
-## RTX 2080 Ti (11 GB) profile
-
-`configs/2080ti/*.json` combine each arm with `configs/hw_2080ti.json`. The profile uses micro-batch 16 × 2 accumulation steps (the same 16,384 tokens per step) and fp16 with loss scaling, since Turing has no fast bf16. All other settings, including the token budget and the validation set, match the laptop runs.
-
-```
-python train.py --config configs/2080ti/kanvq_hybrid.json
-```
-
-`training.amp` (`auto` | `bf16` | `fp16` | `fp32`) overrides the precision. `auto` picks bf16 on Ampere or newer GPUs and fp16 otherwise.
-
-## 24 GB card (Chinchilla-scale study)
+**24 GB card.** `configs/24gb/*.json` combine an arm with `configs/scale_24gb.json` (d_model 768, 12 layers, 32k vocabulary, separate data directory):
 
 ```bash
-python prepare_data.py --config configs/24gb/kanvq_hybrid.json      # separate data dir, 32k vocab
-python train.py --config configs/24gb/kanvq_hybrid.json
-python train.py --config configs/24gb/vanilla_text.json             # etc. for every file in configs/24gb/
+python prepare_data.py --config configs/24gb/sphere_hybrid.json
+python train.py --config configs/24gb/sphere_hybrid.json
 ```
 
-This scale is about 194M params and about 3.9B tokens. Tune `training.micro_batch` and `grad_accum` to your card. Keep their product times `max_seq_len` fixed across arms.
+Tune `training.micro_batch` and `grad_accum` to the card, keeping their product × `max_seq_len` fixed across arms.
 
 ## Configuration
 
@@ -76,18 +61,21 @@ Every run is fully described by a JSON file. Files can `inherit` from others (a 
 
 | file | arm |
 |---|---|
-| `config.json` | **KAN-VQ hybrid** (main model, laptop size) |
-| `configs/kanvq_text.json` | B1 – same backbone, text-only CoT |
-| `configs/vanilla_text.json` | B2 – SwiGLU (param-matched), dot-product head, text-only |
-| `configs/vanilla_hybrid.json` | B3 – paper's MLP HybridLink on a vanilla backbone |
-| `configs/ablation_*.json` | identity link, MLP link, no self-conditioning, compression 4 |
-| `configs/scale_24gb.json` | partial override for 24 GB; combined via `configs/24gb/*.json` |
+| `configs/base.json` | shared settings for all laptop runs (not run directly) |
+| `config.json` | **sphere_hybrid**: SwiGLU + sphere head + hybrid latent pretraining (main) |
+| `configs/sphere_text.json` | same backbone, text-only CoT (seed-1337 run: `runs/sep_swiglu_sphere_text`) |
+| `configs/vanilla_text.json` | standard tied dot-product head, text-only (seed-1337 run: `runs/vanilla_text`) |
+| `configs/vanilla_hybrid.json` | standard head + hybrid (`vanilla_hybrid_v3`) |
+| `configs/seeds/*.json` | seeds 2 and 3 of `sphere_hybrid`, `sphere_text`, `vanilla_text` |
+| `configs/abl_*.json` | stronger self-conditioning, compression 4, no self-conditioning, identity link |
+| `configs/archive_kan/*.json` | the v2 KAN-study runs, kept reproducible |
+| `configs/24gb/`, `configs/2080ti/` | hardware variants of the current arms |
 
 Key knobs:
 
-**`model.mlp_type`** is `kan` or `swiglu`. With `swiglu_d_ff: auto`, the SwiGLU hidden size is solved so its FFN parameter count equals the KAN FFN's.
+**`model.mlp_type`** is `swiglu` or `kan` (archived). With `swiglu_d_ff: auto`, the SwiGLU hidden size is solved to match the parameter count of the v1 KAN FFN (1792 at laptop size), which keeps all runs comparable.
 
-**`model.sphere`** switches the VQ unit-sphere codebook on or off. When on, the cosine head, the latent targets, and the nearest-code readout all use the same sphere.
+**`model.sphere`** switches the sphere head on or off. When on, the cosine head (with `logit_bias`), the latent targets and the nearest-token readout all use the same unit-sphere embedding table.
 
 **`model.link_type`** is `kan`, `mlp` (paper Eq. 4), or `identity` (Coconut-style).
 
@@ -95,7 +83,9 @@ Key knobs:
 
 **`hybrid.latent_prob` and `hybrid.self_cond`** are ramps over training progress (`start`, `end`, `ramp_start`, `ramp_end`).
 
-**`training.total_tokens`** is either `"chinchilla"` or an integer. The Chinchilla budget is 20 × the params of the reference KAN-hybrid arm, so every arm gets the same number of tokens.
+**`training.total_tokens`** is either `"chinchilla"` or an integer. The Chinchilla budget is 20 × the parameter count of `training.budget_reference` (the v1 reference model), so every arm, old and new, gets the same 364.7M tokens.
+
+**`training.clip_link_separately`** (default true) clips HybridLink gradients separately from the backbone, so large early link gradients cannot shrink every backbone update.
 
 **`inference.exit_rule`** is one of:
 - `link`: exit when the nearest token of R(h) is `</latent>` (paper Eq. 5).
@@ -105,8 +95,8 @@ Key knobs:
 ## Layout
 
 ```
-hybrid/kan.py         bounded ReLU-KAN layer, KAN FFN, SwiGLU, parameter matching
-hybrid/model.py       backbone, VQ sphere codebook, HybridLink, losses + self-conditioning
+hybrid/kan.py         SwiGLU, bounded ReLU-KAN layer (archived), parameter matching
+hybrid/model.py       backbone, sphere head, HybridLink, losses + self-conditioning
 hybrid/data.py        step segmentation, synthetic chains, binary storage, hybrid packing, batches
 hybrid/generation.py  hybrid decoding with KV cache, latent readout rendering, answer checking
 hybrid/config.py      config inheritance / overrides / curriculum ramps
@@ -115,6 +105,9 @@ train.py              pretraining loop (bf16 autocast, grad accumulation, checkp
 eval.py               accuracy / efficiency / readability / causal interventions
 generate.py           one-shot or interactive generation, shows ⟨latent readouts⟩
 plot_runs.py          compare runs
+compare_runs.py       paired accuracy comparison (Wilson CIs, exact McNemar tests, by depth)
+check_batching.py     verifies batched generation equals one-at-a-time generation
+make_dev_set.py       held-out synthetic dev set for tuning inference settings
 ```
 
 ## Outputs

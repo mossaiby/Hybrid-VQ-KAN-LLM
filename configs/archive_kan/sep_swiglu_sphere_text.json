@@ -1,0 +1,18 @@
+{
+  "_comment": "Archived v2 run (KAN study). Reproduces the run of the same name; v2 used shared gradient clipping.",
+  "inherit": "../base.json",
+  "run": {
+    "name": "sep_swiglu_sphere_text"
+  },
+  "training": {
+    "clip_link_separately": false
+  },
+  "model": {
+    "mlp_type": "swiglu",
+    "link_type": "kan",
+    "sphere": true
+  },
+  "hybrid": {
+    "enabled": false
+  }
+}

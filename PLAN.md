@@ -204,6 +204,47 @@ The token budget is unchanged (20 × the parameters of the v1 reference arm), so
 
 **Reporting.** The paper reports v1 → v2 honestly as a design iteration. The 24 GB study uses the frozen v2 design.
 
+## 10c. v2 results and the pivot to v3
+
+All numbers are single-seed. Accuracy is on the synthetic test set (1,100 problems) unless stated. p-values are exact McNemar tests on the same problems.
+
+**Architecture** (text-only models; synthetic accuracy, with GSM8K in brackets):
+
+| | plain head | sphere head |
+|---|---|---|
+| SwiGLU | 27.5 % (9.9 %) | **54.5 %** (5.5 %) |
+| KAN | 25.0 % (4.1 %) | 24.0 % (3.0 %) |
+
+- **The bounded ReLU-KAN FFN is worse on every measure.** It costs 0.25–0.32 nats of general-text CE, scores lower on GSM8K and OpenMath, gives no synthetic gain, and is 10–15 % slower. The original thesis (C2) is rejected.
+- **The sphere head doubles synthetic accuracy with SwiGLU** (p = 4e-73). It is worse on general-text CE (+0.26 nats), GSM8K and OpenMath.
+- **The head fix did not help KAN.** The per-token bias and higher scale cap left KAN-VQ's CE unchanged.
+
+**Hybrid method:**
+- **Latent mode underperforms text mode.** Hybrid mode trails the same model's text mode (synthetic −4.2 points, p = 7e-9). On GSM8K and OpenMath, free-running latent spans drift into garbage and run to the step cap.
+- **Quantized latents beat continuous ones.** Feeding the nearest token instead of the continuous vector *improves* hybrid accuracy (+2.9 points, p = 2e-6), so the continuous part of the latents carries harmful drift at k = 1.
+- **Hybrid training improves text-mode reasoning on synthetic problems:** vanilla 33.2 % vs 27.5 % (p = 4e-7). There is no significant effect on GSM8K or OpenMath.
+- **The link warm-up was undermined by shared clipping.** The global gradient-norm clip still let the link's huge early gradients scale down every backbone update (grad norm ≈ 100 for about 4,000 steps). v3 clips the link separately.
+
+**v3 direction.** The main model is SwiGLU with the sphere head, plus hybrid training with the paper's MLP link and separate link clipping.
+
+Claims to establish, with three seeds:
+- **(a)** the sphere head improves exact multi-step reasoning in small from-scratch models;
+- **(b)** hybrid latent pretraining improves text chain-of-thought;
+- **(c)** where and why from-scratch continuous latents fail: drift, quantization, length.
+
+Then attack latent drift with three runs:
+- stronger self-conditioning (`abl_selfcond3`);
+- compression (`abl_compress4`);
+- a shorter latent span cap (inference only).
+
+The 24 GB study scales whatever survives the seeds.
+
+Laptop run order:
+1. `sphere_hybrid`
+2. seeds 2–3 of `sphere_hybrid`, `sphere_text` and `vanilla_text`
+3. `vanilla_hybrid_v3`
+4. the `abl_*` runs
+
 ## 11. Target venues (no article-processing charge)
 
 Verify current policies on each site before submitting.

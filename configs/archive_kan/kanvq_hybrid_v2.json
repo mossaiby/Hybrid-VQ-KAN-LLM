@@ -1,0 +1,15 @@
+{
+  "_comment": "Archived v2 run (KAN study). Reproduces the run of the same name; v2 used shared gradient clipping.",
+  "inherit": "../base.json",
+  "run": {
+    "name": "kanvq_hybrid_v2"
+  },
+  "training": {
+    "clip_link_separately": false
+  },
+  "model": {
+    "mlp_type": "kan",
+    "link_type": "kan",
+    "sphere": true
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "inherit": "../vanilla_text.json",
+  "run": {
+    "name": "vanilla_text_s2",
+    "seed": 2
+  }
+}

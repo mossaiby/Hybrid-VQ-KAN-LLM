@@ -1,0 +1,6 @@
+{
+  "inherit": [
+    "../../config.json",
+    "../hw_2080ti.json"
+  ]
+}

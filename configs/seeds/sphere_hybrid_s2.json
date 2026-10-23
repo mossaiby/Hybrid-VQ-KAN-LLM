@@ -1,0 +1,7 @@
+{
+  "inherit": "../../config.json",
+  "run": {
+    "name": "sphere_hybrid_s2",
+    "seed": 2
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "inherit": [
+    "../sphere_text.json",
+    "../scale_24gb.json"
+  ],
+  "run": {
+    "name": "24gb_sphere_text"
+  }
+}

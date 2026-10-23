@@ -1,0 +1,155 @@
+{
+  "run": {
+    "name": "sep_kan_plainhead_text",
+    "out_root": "runs",
+    "seed": 1337
+  },
+  "data": {
+    "dir": "data/laptop",
+    "tokenizer": {
+      "vocab_size": 16384,
+      "train_docs": 100000
+    },
+    "general": {
+      "enabled": true,
+      "dataset": "HuggingFaceFW/fineweb-edu",
+      "config": "sample-10BT",
+      "split": "train",
+      "text_field": "text",
+      "train_tokens": 150000000,
+      "val_tokens": 2000000
+    },
+    "openmath": {
+      "enabled": true,
+      "dataset": "nvidia/OpenMathInstruct-2",
+      "config": null,
+      "split": "train_1M",
+      "sources": [
+        "gsm8k",
+        "augmented_gsm8k"
+      ],
+      "max_train_samples": 600000,
+      "val_samples": 2000,
+      "max_tokens_per_sample": 512
+    },
+    "synth": {
+      "enabled": true,
+      "train_samples": 400000,
+      "val_samples": 2000,
+      "train_depth": [
+        2,
+        8
+      ],
+      "eval_depth": [
+        2,
+        12
+      ],
+      "eval_per_depth": 100,
+      "distractors": [
+        0,
+        2
+      ]
+    },
+    "gsm8k": {
+      "enabled": true,
+      "dataset": "openai/gsm8k",
+      "config": "main",
+      "split": "test"
+    },
+    "mix": {
+      "general": 0.4,
+      "openmath": 0.4,
+      "synth": 0.2
+    }
+  },
+  "model": {
+    "d_model": 256,
+    "n_layers": 8,
+    "n_heads": 4,
+    "max_seq_len": 512,
+    "mlp_type": "kan",
+    "d_ff": 384,
+    "kan_grid": 6,
+    "kan_overlap": 1.5,
+    "swiglu_d_ff": "auto",
+    "sphere": false,
+    "logit_scale_init": 16.0,
+    "logit_scale_max": 1000.0,
+    "logit_bias": true,
+    "qk_norm": true,
+    "link_type": "kan",
+    "link_hidden": 256,
+    "dropout": 0.0,
+    "grad_checkpoint": false
+  },
+  "hybrid": {
+    "enabled": false,
+    "compression": 1,
+    "latent_prob": {
+      "start": 0.0,
+      "end": 0.7,
+      "ramp_start": 0.15,
+      "ramp_end": 0.6
+    },
+    "self_cond": {
+      "start": 0.0,
+      "end": 0.5,
+      "ramp_start": 0.45,
+      "ramp_end": 0.8,
+      "iters": 1
+    },
+    "text_only_prob": 0.2,
+    "min_span_tokens": 8,
+    "keep_first_step_text": true,
+    "keep_last_step_text": true,
+    "link_detach_until": 0.3,
+    "lambda_link": 1.0,
+    "lambda_cos": 1.0,
+    "lambda_mse": 0.2,
+    "exit_weight": 2.0
+  },
+  "training": {
+    "total_tokens": "chinchilla",
+    "chinchilla_mult": 20,
+    "micro_batch": 8,
+    "grad_accum": 4,
+    "max_lr": 0.0015,
+    "min_lr_frac": 0.1,
+    "warmup_frac": 0.02,
+    "weight_decay": 0.1,
+    "betas": [
+      0.9,
+      0.95
+    ],
+    "grad_clip": 1.0,
+    "log_interval": 20,
+    "eval_interval": 1000,
+    "save_interval": 2000,
+    "eval_batches": 10,
+    "quick_eval": {
+      "file": "eval_synth.jsonl",
+      "samples": 100,
+      "max_new_steps": 192,
+      "batch_size": 50
+    },
+    "compile": true,
+    "prefetch": 4
+  },
+  "inference": {
+    "temperature": 0.0,
+    "top_k": 0,
+    "top_p": 1.0,
+    "max_new_steps": 384,
+    "min_latent_steps": 0,
+    "max_latent_steps": 128,
+    "exit_rule": "link",
+    "latent_quantize": false
+  },
+  "_resolved": {
+    "n_params": 18235648,
+    "n_params_non_embedding": 14041344,
+    "total_tokens": 364713000,
+    "max_steps": 22261,
+    "vocab_size": 16384
+  }
+}

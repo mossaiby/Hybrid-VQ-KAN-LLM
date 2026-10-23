@@ -1,0 +1,10 @@
+{
+  "_comment": "Each latent step stands for up to 4 tokens (latent spans 4x shorter; the only source of step savings without RL).",
+  "inherit": "../config.json",
+  "run": {
+    "name": "abl_compress4"
+  },
+  "hybrid": {
+    "compression": 4
+  }
+}

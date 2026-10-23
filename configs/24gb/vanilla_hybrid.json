@@ -1,1 +1,9 @@
-{"inherit": ["../vanilla_hybrid.json", "../scale_24gb.json"], "run": {"name": "24gb_vanilla_hybrid"}}
+{
+  "inherit": [
+    "../vanilla_hybrid.json",
+    "../scale_24gb.json"
+  ],
+  "run": {
+    "name": "24gb_vanilla_hybrid"
+  }
+}

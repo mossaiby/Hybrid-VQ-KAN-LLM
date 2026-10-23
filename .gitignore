@@ -3,4 +3,6 @@ data/
 __pycache__/
 # checkpoints are large; logs, configs and eval results under runs/ are tracked
 *.pt
+*.pt.prev
+*.pt.tmp
 runs/**/tokenizer.json

@@ -1,5 +1,5 @@
 {
-  "_comment": "Partial override for a 24 GB consumer GPU (RTX 3090/4090). Not usable alone: combine with a variant via configs/24gb/*.json. ~186M params -> ~3.7B tokens at 20 tok/param.",
+  "_comment": "Partial override for a 24 GB consumer GPU (RTX 3090/4090). Not usable alone: combine with a variant via configs/24gb/*.json. Model size: d_model 768, 12 layers. The token budget is 20x the reference-arm parameter count at this size.",
   "data": {
     "dir": "data/24gb",
     "tokenizer": {"vocab_size": 32768, "train_docs": 300000},

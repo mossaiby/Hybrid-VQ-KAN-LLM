@@ -1,0 +1,10 @@
+{
+  "_comment": "Same backbone as the main model, text chain-of-thought only. The seed-1337 run of this arm already exists as runs/sep_swiglu_sphere_text (identical except an unused link module).",
+  "inherit": "base.json",
+  "run": {
+    "name": "sphere_text"
+  },
+  "hybrid": {
+    "enabled": false
+  }
+}

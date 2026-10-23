@@ -1,0 +1,15 @@
+[
+  {
+    "set": "openmath",
+    "mode": "text",
+    "n": 500,
+    "acc": 0.048,
+    "text_tokens": 180.822,
+    "latent_steps": 0.0,
+    "steps": 180.822,
+    "sec_per_sample": 0.35179770759958795,
+    "latent_frac": 0.0,
+    "readability": null,
+    "batch_size": 32
+  }
+]

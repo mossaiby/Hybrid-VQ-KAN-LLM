@@ -1,0 +1,11 @@
+{
+  "n": 500,
+  "acc": 0.01,
+  "text_tokens": 87.376,
+  "latent_steps": 146.432,
+  "steps": 233.808,
+  "sec_per_sample": 0.4049274002001616,
+  "latent_frac": 0.6262916581126394,
+  "readability": 0.7999201396965083,
+  "batch_size": 32
+}

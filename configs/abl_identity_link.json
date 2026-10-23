@@ -1,0 +1,10 @@
+{
+  "_comment": "No learned link: h_t fed back directly (Coconut-style).",
+  "inherit": "../config.json",
+  "run": {
+    "name": "abl_identity_link"
+  },
+  "model": {
+    "link_type": "identity"
+  }
+}

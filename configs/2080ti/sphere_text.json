@@ -1,0 +1,6 @@
+{
+  "inherit": [
+    "../sphere_text.json",
+    "../hw_2080ti.json"
+  ]
+}

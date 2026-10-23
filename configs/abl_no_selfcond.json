@@ -1,0 +1,12 @@
+{
+  "_comment": "Teacher-forced latent training only.",
+  "inherit": "../config.json",
+  "run": {
+    "name": "abl_no_selfcond"
+  },
+  "hybrid": {
+    "self_cond": {
+      "end": 0.0
+    }
+  }
+}

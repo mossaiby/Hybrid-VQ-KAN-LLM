@@ -1,8 +1,13 @@
 {
-  "_comment": "Baseline B2: standard pre-norm Transformer (SwiGLU FFN parameter-matched to the KAN FFN, tied dot-product head), pure text CoT. The 'what everyone would do' reference.",
-  "inherit": "../config.json",
-  "run": {"name": "vanilla_text_v2"},
-  "model": {"mlp_type": "swiglu", "swiglu_d_ff": "auto", "sphere": false, "link_type": "mlp"},
-  "training": {"max_lr": 1.5e-3},
-  "hybrid": {"enabled": false}
+  "_comment": "Standard tied dot-product head, text CoT only. The seed-1337 run exists as runs/vanilla_text.",
+  "inherit": "base.json",
+  "run": {
+    "name": "vanilla_text"
+  },
+  "model": {
+    "sphere": false
+  },
+  "hybrid": {
+    "enabled": false
+  }
 }

@@ -9,6 +9,7 @@ import argparse
 import csv
 import json
 import math
+import os
 import random
 import shutil
 import time
@@ -88,6 +89,12 @@ def main():
     cfg = load_config(args.config, args.set)
     run, m, t, h = cfg["run"], cfg["model"], cfg["training"], cfg["hybrid"]
     run_dir = Path(run.get("out_root", "runs")) / run["name"]
+    if not args.resume and any((run_dir / f).exists() for f in ("final.pt", "last.pt", "last.pt.prev")):
+        raise SystemExit(f"{run_dir} already contains a checkpoint. Use --resume to continue it, or choose "
+                         f"another name (--set run.name=...). Refusing to append to an existing run's logs.")
+    if args.resume and (run_dir / "final.pt").exists():
+        print(f"{run_dir} is already finished (final.pt exists); nothing to do.")
+        return
     run_dir.mkdir(parents=True, exist_ok=True)
 
     seed = run.get("seed", 1337)
@@ -137,6 +144,10 @@ def main():
                             betas=tuple(t.get("betas", (0.9, 0.95))), eps=1e-8,
                             fused=DEVICE.type == "cuda")
     scaler = torch.amp.GradScaler("cuda", enabled=amp_dtype == torch.float16)
+    clip_sep = bool(t.get("clip_link_separately", True))
+    link_params = list(model.link_mod.parameters())
+    link_ids = {id(p) for p in link_params}
+    backbone_params = [p for p in model.parameters() if id(p) not in link_ids]
     if t.get("compile", False):
         # Compile only the FFNs: in the KAN model they are dominated by memory-bound elementwise work
         # (tanh, basis, concat) that compilation fuses, and they take no cache/mask arguments, so the
@@ -146,8 +157,18 @@ def main():
         print("torch.compile enabled for FFN modules (first steps are slow while compiling)")
 
     start_step, tokens_seen = 0, 0
-    if args.resume and (run_dir / "last.pt").exists():
-        ck = torch.load(run_dir / "last.pt", map_location="cpu", weights_only=False)
+    if args.resume and ((run_dir / "last.pt").exists() or (run_dir / "last.pt.prev").exists()):
+        ck = None
+        for cand in ("last.pt", "last.pt.prev"):  # .prev covers a crash in the middle of saving
+            if (run_dir / cand).exists():
+                try:
+                    ck = torch.load(run_dir / cand, map_location="cpu", weights_only=False)
+                    print(f"loaded {cand}")
+                    break
+                except Exception as e:  # e.g. truncated by a crash in an older version without atomic saves
+                    print(f"{cand} is unreadable ({e})")
+        if ck is None:
+            raise SystemExit(f"No readable checkpoint in {run_dir}; restart this run by deleting the folder.")
         model.load_state_dict(ck["model"]); opt.load_state_dict(ck["optimizer"])
         if "scaler" in ck:
             scaler.load_state_dict(ck["scaler"])
@@ -155,8 +176,14 @@ def main():
         print(f"resumed from step {start_step}")
 
     def save(name, step):
+        # Atomic: write a temporary file, then rename over the old checkpoint, so a crash during saving
+        # can never leave a corrupt last.pt. The previous checkpoint is kept as <name>.prev.
+        tmp, dst = run_dir / (name + ".tmp"), run_dir / name
         torch.save(dict(model=model.state_dict(), optimizer=opt.state_dict(), scaler=scaler.state_dict(),
-                        step=step, tokens_seen=tokens_seen, config=cfg), run_dir / name)
+                        step=step, tokens_seen=tokens_seen, config=cfg), tmp)
+        if dst.exists():
+            os.replace(dst, run_dir / (name + ".prev"))
+        os.replace(tmp, dst)
 
     train_b = BatchBuilder(cfg, sp, "train", seed + start_step)
     val_b = BatchBuilder(cfg, sp, "val", 12345)  # fixed seed: same val set for every arm and resume
@@ -199,7 +226,13 @@ def main():
             for k, v in mets.items():
                 agg.setdefault(k, []).append(v)
         scaler.unscale_(opt)
-        gnorm = torch.nn.utils.clip_grad_norm_(model.parameters(), t.get("grad_clip", 1.0))
+        if clip_sep:  # v3: the link is clipped on its own, so its large early gradients cannot shrink
+            # every backbone update through a shared global norm (observed in vanilla_hybrid_v2)
+            gnorm = torch.nn.utils.clip_grad_norm_(backbone_params, t.get("grad_clip", 1.0))
+            lnorm = torch.nn.utils.clip_grad_norm_(link_params, t.get("link_grad_clip", t.get("grad_clip", 1.0)))
+        else:
+            gnorm = torch.nn.utils.clip_grad_norm_(model.parameters(), t.get("grad_clip", 1.0))
+            lnorm = torch.zeros(())
         scaler.step(opt)
         scaler.update()
         opt.zero_grad(set_to_none=True)
@@ -208,7 +241,8 @@ def main():
         if step % t["log_interval"] == 0 or step == max_steps - 1:
             dt = time.time() - t_last
             row = dict(step=step, tokens=tokens_seen, lr=lr, latent_prob=lp, self_cond_prob=sc_p,
-                       grad_norm=float(gnorm), tok_per_s=(tokens_seen - tok_last) / max(dt, 1e-9))
+                       grad_norm=float(gnorm), link_grad_norm=float(lnorm),
+                       tok_per_s=(tokens_seen - tok_last) / max(dt, 1e-9))
             row.update({k: float(torch.stack([torch.as_tensor(x, dtype=torch.float32) for x in v]).mean())
                         for k, v in agg.items()})
             if model.sphere:
@@ -217,7 +251,7 @@ def main():
                 row["mem_gb"] = torch.cuda.max_memory_allocated() / 1e9
             t_last, tok_last = time.time(), tokens_seen
             keys = ["step", "tokens", "lr", "ce", "link", "readability", "link_cos", "exit_acc", "false_exit",
-                    "slot_tok_acc", "n_latent", "latent_prob", "self_cond_prob", "grad_norm", "tok_per_s",
+                    "slot_tok_acc", "n_latent", "latent_prob", "self_cond_prob", "grad_norm", "link_grad_norm", "tok_per_s",
                     "logit_scale", "mem_gb"]
             if log_w is None:
                 log_w = csv.DictWriter(log_f, fieldnames=keys, extrasaction="ignore")

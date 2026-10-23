@@ -1,0 +1,9 @@
+{
+  "inherit": [
+    "../../config.json",
+    "../scale_24gb.json"
+  ],
+  "run": {
+    "name": "24gb_sphere_hybrid"
+  }
+}

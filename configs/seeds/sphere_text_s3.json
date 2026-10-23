@@ -1,0 +1,7 @@
+{
+  "inherit": "../sphere_text.json",
+  "run": {
+    "name": "sphere_text_s3",
+    "seed": 3
+  }
+}
